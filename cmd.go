@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+	"os"
 	"os/user"
 
 	"github.com/spf13/cobra"
@@ -12,6 +14,9 @@ var identityFile string
 var jumphost string
 var filters string
 var openSubnet string
+var verbose bool
+
+var l = log.New(os.Stderr, "", 0)
 
 var rootCmd = &cobra.Command{
 	Use: "generate-ssh-configs",
@@ -39,6 +44,12 @@ var digitalOceanCmd = &cobra.Command{
 		}
 		generateDigitalOcean(prefix)
 	},
+}
+
+func logDebug(format string, v ...interface{}) {
+	if verbose {
+		l.Printf(format, v...)
+	}
 }
 
 func requirePrefix(cmd *cobra.Command) {
@@ -73,6 +84,15 @@ func identityFileFlag(cmd *cobra.Command) {
 	)
 }
 
+func verboseFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(
+		&verbose,
+		"verbose",
+		false,
+		"Print info to stderr",
+	)
+}
+
 func cmdInit() {
 	requirePrefix(awsCmd)
 	requirePrefix(digitalOceanCmd)
@@ -80,6 +100,8 @@ func cmdInit() {
 	userFlag(awsCmd)
 	userFlag(digitalOceanCmd)
 	identityFileFlag(awsCmd)
+	verboseFlag(awsCmd)
+	verboseFlag(digitalOceanCmd)
 	awsCmd.Flags().StringVar(
 		&jumphost,
 		"jumphost",

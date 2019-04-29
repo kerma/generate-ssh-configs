@@ -242,7 +242,7 @@ func generateAWS(prefix string) {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
-	ec2Client := ec2.New(sess)
+	ec2Client := ec2.New(sess, &aws.Config{MaxRetries: aws.Int(5)})
 
 	ec2Filters := []*ec2.Filter{
 		&ec2.Filter{
@@ -288,12 +288,14 @@ func generateAWS(prefix string) {
 		jumphostHostname = prefix + "-" + jumphostName
 	}
 
+	logDebug("instanceId\t\tisInPublicSubnet\tisPortOpen\tIP\t\thostName\n")
 	for _, instance := range instances {
 		isInPublicSubnet := isInstanceInPublicSubnet(ec2Client, instance)
 		isPortOpen := isPortOpen(ec2Client, instance)
 		name := getName(instance)
 		hostName := prefix + name
 
+		s := fmt.Sprintf("%s\t%t\t\t\t%t\t\t", *instance.InstanceId, isInPublicSubnet, isPortOpen)
 		var tmplData map[string]string
 
 		if isInPublicSubnet && isPortOpen {
@@ -301,13 +303,19 @@ func generateAWS(prefix string) {
 				"Domain": hostName,
 				"IP":     *instance.PublicIpAddress,
 			}
+			s = s + *instance.PublicIpAddress
 		} else if jumphost != "" {
 			tmplData = map[string]string{
 				"Domain":    hostName,
 				"IP":        *instance.PrivateIpAddress,
 				"ProxyJump": jumphostHostname,
 			}
+			s = s + *instance.PrivateIpAddress
+		} else {
+			s = s + "n/a           "
 		}
+		s = s + fmt.Sprintf("\t%s\n", hostName)
+		logDebug(s)
 
 		if _, ok := tmplData["IP"]; ok {
 			templateData.Instances = append(templateData.Instances, tmplData)
